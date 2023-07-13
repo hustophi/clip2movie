@@ -2,11 +2,12 @@
 ## 目前论文处于评审阶段，代码陆续上传ing...
 ## TO BE UPLOADED
 
-- [ ] Model Modules
-- [ ] utils and loggers
+- [x] Model Modules
+- [x] utils and loggers
 - [ ] Trainer and train
-- [ ] running Requirements
+- [ ] package requirements
 - [x] Base Modules
 - [x] Dataloader Modules
+- [ ] framework figure of SAVRN
 
-本代码框架基于[pytorch-template](https://github.com/victoresque/pytorch-template)
+本代码目录结构基于[pytorch-template](https://github.com/victoresque/pytorch-template)
