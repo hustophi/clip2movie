@@ -1,6 +1,7 @@
 import torch
 from torchmetrics.classification import MulticlassAUROC
-def recall(pos_output, threshold=0.6):
+def recall(output, threshold=0.6):
+    pos_output, neg_output = output
     with torch.no_grad():
         pos_prob = torch.sigmoid(pos_output)    #B * num_clip * 1
         #TP = (pos_prob > threshold).reshape(-1).nonzero().numel()
@@ -19,7 +20,8 @@ def val_inBatchrecall(output, Bm):    #validation时Bc == Bm
         correct += torch.sum(pred == target).item()
         return correct / len(target)
 '''
-def auc(pos_output, neg_output, thresholds=None):
+def auc(output, thresholds=None):
+    pos_output, neg_output = output
     with torch.no_grad():
         pos_prob, neg_prob = torch.sigmoid(pos_output).reshape(-1, 1), torch.sigmoid(neg_output).reshape(-1, 1)
         preds = torch.cat([pos_prob, neg_prob], dim=0)
