@@ -3,7 +3,7 @@ import torch
 from torchvision.utils import make_grid
 from base import BaseTrainer
 from utils import inf_loop, MetricTracker
-
+from einops import rearrange
 
 class Trainer(BaseTrainer):
     """
@@ -37,28 +37,35 @@ class Trainer(BaseTrainer):
         :param epoch: Integer, current training epoch.
         :return: A log that contains average loss and metric in this epoch.
         """
+        #self.data_loader.sampler.set_epoch(epoch)      #多卡训练
         self.model.train()
         self.train_metrics.reset()
-        for batch_idx, (data, target) in enumerate(self.data_loader):
-            data, target = data.to(self.device), target.to(self.device)
-
+        for batch_idx, (movies, posClips, negClips) in enumerate(self.data_loader):
+            movies, posClips, negClips = movies.to(self.device), posClips.to(self.device), negClips.to(self.device)
+            movies, posClips, negClips = rearrange(movies, 'b n d c h w -> b n c d h w'), rearrange(posClips, 'b n d c h w -> b n c d h w'), rearrange(negClips, 'b n d c h w -> b n c d h w')
             self.optimizer.zero_grad()
-            output = self.model(data)
-            loss = self.criterion(output, target)
+            #print(movies.shape, posClips.shape, negClips.shape)
+            pos_output, neg_output = self.model(posClips, movies), self.model(negClips, movies)
+            #print("pos_prob: ", torch.nn.functional.sigmoid(pos_output))
+            #print("neg_prob: ", torch.nn.functional.sigmoid(neg_output))
+            #torch.cuda.empty_cache()
+            #neg_output = self.model(negClips, movies)
+            #torch.cuda.empty_cache()
+            loss = self.criterion(pos_output, neg_output)
             loss.backward()
             self.optimizer.step()
 
             self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
             self.train_metrics.update('loss', loss.item())
             for met in self.metric_ftns:
-                self.train_metrics.update(met.__name__, met(output, target))
+                self.train_metrics.update(met.__name__, met([pos_output, neg_output]))
 
             if batch_idx % self.log_step == 0:
                 self.logger.debug('Train Epoch: {} {} Loss: {:.6f}'.format(
                     epoch,
                     self._progress(batch_idx),
                     loss.item()))
-                self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+                #self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
 
             if batch_idx == self.len_epoch:
                 break
@@ -82,21 +89,24 @@ class Trainer(BaseTrainer):
         self.model.eval()
         self.valid_metrics.reset()
         with torch.no_grad():
-            for batch_idx, (data, target) in enumerate(self.valid_data_loader):
-                data, target = data.to(self.device), target.to(self.device)
-
-                output = self.model(data)
-                loss = self.criterion(output, target)
+            for batch_idx, (movies, posClips, negClips) in enumerate(self.valid_data_loader):
+                movies, posClips, negClips = movies.to(self.device), posClips.to(self.device), negClips.to(self.device)
+                movies, posClips, negClips = rearrange(movies, 'b n d c h w -> b n c d h w'), rearrange(posClips, 'b n d c h w -> b n c d h w'), rearrange(negClips, 'b n d c h w -> b n c d h w')
+                pos_output, neg_output = self.model(posClips, movies), self.model(negClips, movies)
+                #torch.cuda.empty_cache()
+                #neg_output = self.model(negClips, movies)
+                #torch.cuda.empty_cache()
+                loss = self.criterion(pos_output, neg_output)
 
                 self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
                 self.valid_metrics.update('loss', loss.item())
                 for met in self.metric_ftns:
-                    self.valid_metrics.update(met.__name__, met(output, target))
-                self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+                    self.valid_metrics.update(met.__name__, met([pos_output, neg_output]))
+                #self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
 
         # add histogram of model parameters to the tensorboard
-        for name, p in self.model.named_parameters():
-            self.writer.add_histogram(name, p, bins='auto')
+        #for name, p in self.model.named_parameters():
+        #    self.writer.add_histogram(name, p, bins='auto')
         return self.valid_metrics.result()
 
     def _progress(self, batch_idx):
