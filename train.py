@@ -1,15 +1,16 @@
+import os
 import argparse
 import collections
 import torch
 import numpy as np
 import data_loader.data_loaders as module_data
 import model.loss as module_loss
-import model.metric as module_metric
+import model.metric as module_metric    #模型评价指标
 import model.model as module_arch
 from parse_config import ConfigParser
 from trainer import Trainer
 from utils import prepare_device
-
+from warmup_scheduler import GradualWarmupScheduler
 
 # fix random seeds for reproducibility
 SEED = 123
@@ -21,9 +22,14 @@ np.random.seed(SEED)
 def main(config):
     logger = config.get_logger('train')
 
+    #if config["local_rank"] != -1:
+    #   torch.cuda.set_device(config["local_rank"])
+    #   device=torch.device("cuda", config["local_rank"])
+    #   torch.distributed.init_process_group(backend="nccl", init_method='env://')
+
     # setup data_loader instances
-    data_loader = config.init_obj('data_loader', module_data)
-    valid_data_loader = data_loader.split_validation()
+    data_loader = config.init_obj('data_loader', module_data, mode='train')     #data_loader = config.init_obj('data_loader', module_data)
+    valid_data_loader = config.init_obj('data_loader', module_data, mode='val')     #valid_data_loader = data_loader.split_validation()
 
     # build model architecture, then print to console
     model = config.init_obj('arch', module_arch)
@@ -32,7 +38,9 @@ def main(config):
     # prepare for (multi-device) GPU training
     device, device_ids = prepare_device(config['n_gpu'])
     model = model.to(device)
+    #print("###########", device,"############")
     if len(device_ids) > 1:
+        #model = torch.nn.DistributedDataParallel(model, device_ids=[config["local_rank"]], output_device=config["local_rank"])     #多卡训练
         model = torch.nn.DataParallel(model, device_ids=device_ids)
 
     # get function handles of loss and metrics
@@ -43,13 +51,13 @@ def main(config):
     trainable_params = filter(lambda p: p.requires_grad, model.parameters())
     optimizer = config.init_obj('optimizer', torch.optim, trainable_params)
     lr_scheduler = config.init_obj('lr_scheduler', torch.optim.lr_scheduler, optimizer)
-
+    scheduler_warmup = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=2.5, after_scheduler=lr_scheduler)
     trainer = Trainer(model, criterion, metrics, optimizer,
                       config=config,
                       device=device,
                       data_loader=data_loader,
                       valid_data_loader=valid_data_loader,
-                      lr_scheduler=lr_scheduler)
+                      lr_scheduler=scheduler_warmup)
 
     trainer.train()
 
@@ -62,6 +70,7 @@ if __name__ == '__main__':
                       help='path to latest checkpoint (default: None)')
     args.add_argument('-d', '--device', default=None, type=str,
                       help='indices of GPUs to enable (default: all)')
+    #args.add_argument('-l', '--local_rank', default=os.getenv('LOCAL_RANK', -1), type=int)
 
     # custom cli options to modify configuration from default values given in json file.
     CustomArgs = collections.namedtuple('CustomArgs', 'flags type target')
@@ -70,4 +79,5 @@ if __name__ == '__main__':
         CustomArgs(['--bs', '--batch_size'], type=int, target='data_loader;args;batch_size')
     ]
     config = ConfigParser.from_args(args, options)
+    #print(config["name"])
     main(config)
