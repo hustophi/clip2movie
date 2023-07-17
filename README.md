@@ -4,7 +4,7 @@
 
 - [x] Model Modules
 - [x] utils and loggers
-- [ ] Trainer and train
+- [x] Trainer and train
 - [ ] package requirements
 - [x] Base Modules
 - [x] Dataloader Modules
