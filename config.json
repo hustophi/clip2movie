@@ -1,50 +1,78 @@
 {
-    "name": "Mnist_LeNet",
-    "n_gpu": 1,
-
+    "name": "Clip2Mov",
+    "n_gpu": 2,
     "arch": {
-        "type": "MnistModel",
-        "args": {}
+        "type": "Clip2MovModel",
+        "args": {
+            "swin_arch": {
+                "embed_dims": 144,
+                "depths": [
+                    1,
+                    1,
+                    3,
+                    1
+                ],
+                "num_heads": [
+                    2,
+                    4,
+                    8,
+                    16
+                ]
+            },
+            "num_keyframe": 3,
+            "frame_size": [
+                168,
+                168
+            ],
+            "shot_embed": 512,
+            "attn_head": 8,
+            "cross_attn_depth": 2,
+            "cls_attn_depth": 2,
+            "mlp_ratio": 1.0,
+            "drop_rate": 0.0,
+            "attn_drop_rate": 0.2,
+            "pretrained_2Dswin": false
+        }
     },
     "data_loader": {
-        "type": "MnistDataLoader",
-        "args":{
-            "data_dir": "data/",
-            "batch_size": 128,
-            "shuffle": true,
-            "validation_split": 0.1,
-            "num_workers": 2
+        "type": "MyDataLoader",
+        "args": {
+            "path_txt": "/home/um202070049/share/movieNet/video_path.txt",
+            "batch_size": 2,
+            "shuffle": false,
+            "pin_memory": true,
+            "num_workers": 4
         }
     },
     "optimizer": {
-        "type": "Adam",
-        "args":{
+        "type": "AdamW",
+        "args": {
             "lr": 0.001,
-            "weight_decay": 0,
-            "amsgrad": true
+            "weight_decay": 0.02,
+            "betas": [
+                0.9,
+                0.999
+            ]
         }
     },
-    "loss": "nll_loss",
+    "loss": "weightedBCELoss",
     "metrics": [
-        "accuracy", "top_k_acc"
+        "recall", "auc"
     ],
     "lr_scheduler": {
-        "type": "StepLR",
+        "type": "CosineAnnealingLR",
         "args": {
-            "step_size": 50,
-            "gamma": 0.1
+            "T_max": 1,
+            "eta_min": 0.0
         }
     },
     "trainer": {
-        "epochs": 100,
-
+        "epochs": 20,
         "save_dir": "saved/",
-        "save_period": 1,
+        "save_period": 2,
         "verbosity": 2,
-        
         "monitor": "min val_loss",
-        "early_stop": 10,
-
+        "early_stop": 0,
         "tensorboard": true
     }
 }
