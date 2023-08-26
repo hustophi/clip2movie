@@ -2,4 +2,10 @@ torch>=1.1
 torchvision
 numpy
 tqdm
+einops
+torchmetrics
+warmup-scheduler
+mmaction2==1.0.0
+mmcv==2.0.0
+scikit-image==0.18.0
 tensorboard>=1.14
