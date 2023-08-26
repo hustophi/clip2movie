@@ -5,7 +5,7 @@
 - [x] Model Modules
 - [x] utils and loggers
 - [x] Trainer and train
-- [ ] package requirements
+- [x] package requirements
 - [x] Base Modules
 - [x] Dataloader Modules
 - [ ] framework figure of SAVRN
