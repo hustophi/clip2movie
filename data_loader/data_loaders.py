@@ -55,7 +55,7 @@ class MyDataset(Dataset):
             posClipsTensor = self.genClipsTensor(valClipDir)
         if self.mode != 'test':
             negClipList = []
-            negMovie = random.sample(self.videos[:index]+self.videos[index+1:], 3)     #随机取9部电影
+            negMovie = random.sample(self.videos[:index]+self.videos[index+1:], 3)     #随机取3部电影
             for _ in negMovie:
                 for i in range(9):
                     if self.mode == 'train': clipPath = osp.join(_, self.mode, 'clip_'+str(i)+'0')
